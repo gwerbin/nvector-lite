@@ -1,13 +1,28 @@
 r"""Lightweigh n-vector functionality.
 
-This module is heavily based on the original [Nvector 2022] Python library, which is
+This module is heavily based on the original Nvector Python library, which is
 distributed under a BSD 3-Clause license.
 
 This implementation is hard-coded to use a spherical Earth model in the the "E"
-reference frame from [Gade 2010], for implementation simplicity. The choice of reference
+reference frame from Gade (2010), for implementation simplicity. The choice of reference
 frame does not affect any of the results of geodesic calculations. However it is
 important to know the reference frame when converting between n-vector and other
 representations, and when interoperating with other libraries.
+
+An "n-vector" is a 3-vector. In our implementation, an array of shape ``(3, N)``
+represents a collection of ``N`` n-vectors.
+
+In certain cases, only "scalar" n-vector arrays are accepted, i.e. arrays strictly of
+shape ``(3, 1)``.
+
+1-d arrays of shape ``(3,)`` are considered scalar n-vectors and are upgraded to 2-d
+arrays of shape ``(3,1)`` (column vectors).
+
+Multidimensional collections of n-vectors should also work, e.g. ``(3, K, M, N)``
+representing a K×M×N array of n-vectors. But that case is not tested, and should be
+considered experimental at best.
+
+N-vectors in spaces other than 3 dimensions are not supported.
 
 
 Background
@@ -70,6 +85,17 @@ from numpy.typing import NBitBase, NDArray
 
 
 _B = TypeVar("_B", bound=NBitBase)
+
+
+def _validate(v: NDArray[np.floating[_B]]) -> None:
+    if v.ndim == 0 or v.shape[0] != 3:
+        raise ValueError("Input is not a valid n-vector array.")
+
+
+def _promote_shape(v: NDArray[np.floating[_B]]) -> None:
+    if v.ndim == 1:
+        v = v[:, np.newaxis]
+    return v
 
 
 def normalize(
@@ -161,12 +187,8 @@ def nvector_to_lonlat(
     :returns: A pair of arrays of shape ``shape`` where ``(3, *shape)`` is the shape of
         the input. The first array is longitude, the second is latitude.
     """
-    if not (nvect.ndim >= 1 and nvect.shape[0] == 3):
-        raise ValueError("Input is not a valid 3D n-vector array.")
-
-    if nvect.ndim == 1:
-        # Don't use np.atleast_1d, which adds the wrong axis.
-        nvect = nvect[:, np.newaxis]
+    _validate(nvect)
+    nvect = _promote_shape(nvect)
 
     lon = np.arctan2(nvect[1, ...], -nvect[2, ...])
 
@@ -184,7 +206,70 @@ def nvector_great_circle_normal(
     v1: NDArray[np.floating[_B]], v2: NDArray[np.floating[_B]]
 ) -> NDArray[np.floating[_B]]:
     r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors."""
+    _validate(v1)
+    _validate(v2)
+    v1 = _promote_shape(v1)
+    v2 = _promote_shape(v2)
     return normalize(np.cross(v1, v2, axis=0))
+
+
+def nvector_arc_angle(
+    v1: NDArray[np.floating[_B]], v2: NDArray[np.floating[_B]]
+) -> NDArray[np.floating[_B]]:
+    r"""Compute the arc angle between two n-vectors on the unit sphere.
+
+    Note that this is the great-circle distance on the unit sphere.
+    To get great-circle/geodesic distance on the surface of a non-unit sphere, multiply
+    this result by the sphere radius.
+    """
+    _validate(v1)
+    _validate(v2)
+    v1 = _promote_shape(v1)
+    v2 = _promote_shape(v2)
+    return np.acos(np.dot(v1.T, v2))
+
+
+def nvector_cross_track_distance(
+    v1: NDArray[np.floating[_B]],
+    v2: NDArray[np.floating[_B]],
+    u: NDArray[np.floating[_B]],
+) -> NDArray[np.floating[_B]]:
+    r"""Compute the cross-track distance of ``u`` with respect to the geodesic between ``v1`` and ``v2``.
+
+    Note that this is the great-circle distance on the unit sphere.
+    To get distance on the surface of a non-unit sphere, multiply this result by the
+    sphere radius.
+
+    See N-vector Example 10: https://www.ffi.no/en/research/n-vector/#example_10
+    """
+    _validate(v1)
+    _validate(v2)
+    _validate(u)
+    v1 = _promote_shape(v1)
+    v2 = _promote_shape(v2)
+    u = _promote_shape(u)
+    n = nvector_great_circle_normal(v1, v2)
+    return nvector_cross_track_distance_from_normal(n, u)
+
+
+def nvector_cross_track_distance_from_normal(
+    n: NDArray[np.floating[_B]],
+    u: NDArray[np.floating[_B]],
+) -> NDArray[np.floating[_B]]:
+    r"""Compute the cross-track distance of ``u`` with respect to the geodesic between ``v1`` and ``v2``.
+
+    The difference between this and ``nvector_cross_track_distance`` is that here it is
+    assumed that we already know the great-circle-plane normal vector ``n``. Useful to
+    compute the cross-track distances of many points with respect to many tracks,
+    if we want to pre-compute and save the normal vector of each track.
+
+    To get distance on the surface of a non-unit sphere, multiply this result by the
+    sphere radius.
+
+    See N-vector Example 10: https://www.ffi.no/en/research/n-vector/#example_10
+    """
+    # Equivalent to: np.acos(nvector_arc_angle(n, u)) - np.pi/2
+    return -np.asin(np.squeeze(np.dot(n.T, u)))
 
 
 def nvector_direct(
