@@ -1,0 +1,62 @@
+= N-vector Lite
+
+== About
+
+N-vector Lite is a simple, flexible, and permissively-licensed implementation
+of the https://www.ffi.no/en/research/n-vector["n-vector" horizontal position
+system] in Python and Numpy. It is currently **alpha quality**.
+
+Note that this project is developed/maintained as a side project in my spare
+time. See `+LICENSE.txt+` for license terms, including a total disclaimer of
+warranty. Contributions of bugfixes and features are accepted, but I make no
+promises about the timeliness of my response.
+
+For an explanation of the n-vector system, refer to the `+nvector_lite.py+` docstring.
+
+This library is designed to work with arbitrary-shape/size Numpy arrays. By
+comparison, the original https://pypi.org/project/nvector[nvector]
+implementation has inconsistent and unclear support for arrays of multiple
+points, i.e. anything other than shape `+(3, 1)+`.
+
+N-vector Lite is meant to be useful for "batch" computation over datasets of
+points stored in Numpy arrays, Pandas data frames, etc. — with much faster
+performance than you would be able to achieve with the original `+nvector+`
+library.
+
+This is also useful for SQL-like database/query engines that support
+batched/vectorized Python UDFs, such as PySpark, DuckDB, and Snowflake.
+
+== Installation
+
+I will set up PyPI publishing and a stable versioning scheme eventually.
+For now, install https://pip.pypa.io/en/stable/topics/vcs-support/#git[directly from Git using Pip]:
+
+[,shell]
+----
+pip install git+https://github.com/gwerbin/nvector-lite
+----
+
+== Development
+
+Development requires https://hatch.pypa.io/[Hatch].
+
+First, clone the Git repository.
+
+Then, set up our Hatch environments:
+
+[,shell]
+----
+hatch python install all
+hatch env create dev
+----
+
+Technically this is optional and will be done automatically by `+hatch run+`.
+But it's nice to have everything set up and ready to avoid a long wait for the
+first command.
+
+Run tests:
+
+[,shell]
+----
+hatch run dev:pytest
+----

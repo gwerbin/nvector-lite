@@ -1,0 +1,70 @@
+## Build system
+
+[build-system]
+requires = ['setuptools']
+build-backend = 'setuptools.build_meta'
+
+
+## Project
+
+[project]
+name = 'nvector-lite'
+version = '0.1.0'
+requires-python = '>=3.10'
+dependencies = ['numpy']
+
+[project.optional-dependencies]
+test = ['pytest', 'hypothesis', 'nvector', 'geographiclib', 'pyproj', 'mypy']
+
+
+## Setuptools
+
+[tool.setuptools]
+py-modules = ['nvector_lite']
+
+
+## Hatch
+
+[tool.hatch.envs.test]
+features = ['test']
+
+[tool.hatch.envs.dev]
+template = 'test'
+extra-dependencies = ['ipython', 'pdbp']
+
+
+## Pytest
+
+[tool.pytest.ini_options]
+
+minversion = '7.0'
+
+# • Use the modern "importlib" import mode
+# • Make test failure reports less enormous
+# • Summarize with (a)ll except for passed: (w)arnings, (f)ailed, (E)rror, (s)kipped, (x)failed, (X)passed
+# • Disable early-loading of the Hypothesis plugin; it will be added in conftest.
+# NOTE: Don't include --dist=loadscope here because pytest-xdist isn't installed in CI
+addopts = '--import-mode=importlib --tb=short -r a -p no:hypothesispytest'
+
+testpaths = ['./test_nvector_lite.py']
+
+python_files = ['test_*.py', 'test.py']
+python_classes = ['Test*', 'test_*']
+python_functions = ['test_*']
+
+
+## Mypy
+
+[tool.mypy]
+
+python_version = '3.10'
+strict = true
+files = ['nvector_lite.py', 'test_nvector_lite.py']
+
+plugins = ['numpy.typing.mypy_plugin']
+
+[[tool.mypy.overrides]]
+
+ignore_missing_imports = true
+
+module = ['nvector', 'nvector.*']
