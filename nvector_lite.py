@@ -98,6 +98,31 @@ def _promote_shape(v: NDArray[np.floating[_B]]) -> None:
     return v
 
 
+def _dot_each(u: NDArray[np.floating[_B]], v: NDArray[np.floating[_B]],) -> NDArray[np.floating[_B]]:
+    r"""Dot product of every pair of corresponding n-vectors."""
+    return (u * v).sum(axis=0)
+
+
+def _cross_each(u: NDArray[np.floating[_B]], v: NDArray[np.floating[_B]],) -> NDArray[np.floating[_B]]:
+    r"""Cross product of every pair of corresponding n-vectors."""
+    return np.cross(u, v, axis=0)
+
+
+def _norm_each(u: NDArray[np.floating[_B]]) -> NDArray[np.floating[_B]]:
+    return np.linalg.norm(u, axis=0)
+
+
+def _broadcast_cartesian(u, v):
+    u_slices = (slice(None),) * u.ndim + (None,) * (v.ndim - 1)
+    v_slices = (slice(None),) + (None,) * (u.ndim - 1) + (slice(None),) * (v.ndim - 1)
+    return u[u_slices], v[v_slices]
+
+
+def _dot_cartesian(u: NDArray[np.floating[_B]], v: NDArray[np.floating[_B]],) -> NDArray[np.floating[_B]]:
+    r"""Dot product of every pair of n-vectors in the Cartesian product of n-vectors."""
+    return np.tensordot(u, v, axes=([0], [0]))
+
+
 def normalize(
     v: NDArray[np.floating[_B]], axis: int | Sequence[int] | None = None
 ) -> NDArray[np.floating[_B]]:
@@ -192,7 +217,7 @@ def nvector_to_lonlat(
 
     lon = np.arctan2(nvect[1, ...], -nvect[2, ...])
 
-    equatorial_component = np.sqrt(nvect[1, ...] ** 2 + nvect[2, ...] ** 2)
+    equatorial_component = np.sqrt(np.square(nvect[1, ...]) + np.square(nvect[2, ...]))
     lat = np.arctan2(nvect[0, ...], equatorial_component)
 
     if not radians:
@@ -203,18 +228,21 @@ def nvector_to_lonlat(
 
 
 def nvector_great_circle_normal(
-    v1: NDArray[np.floating[_B]], v2: NDArray[np.floating[_B]]
+    v1: NDArray[np.floating[_B]],
+    v2: NDArray[np.floating[_B]]
 ) -> NDArray[np.floating[_B]]:
     r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors."""
     _validate(v1)
     _validate(v2)
     v1 = _promote_shape(v1)
     v2 = _promote_shape(v2)
-    return normalize(np.cross(v1, v2, axis=0))
+    return normalize(_cross_each(v1, v2))
 
 
 def nvector_arc_angle(
-    v1: NDArray[np.floating[_B]], v2: NDArray[np.floating[_B]]
+    v1: NDArray[np.floating[_B]],
+    v2: NDArray[np.floating[_B]],
+    outer: bool = False,
 ) -> NDArray[np.floating[_B]]:
     r"""Compute the arc angle between two n-vectors on the unit sphere.
 
@@ -226,7 +254,10 @@ def nvector_arc_angle(
     _validate(v2)
     v1 = _promote_shape(v1)
     v2 = _promote_shape(v2)
-    return np.acos(np.dot(v1.T, v2))
+    return np.atan2(
+        _norm_each(_cross_each(v1, v2)),
+        _dot_each(v1, v2),
+    )
 
 
 def nvector_cross_track_distance(
@@ -268,8 +299,16 @@ def nvector_cross_track_distance_from_normal(
 
     See N-vector Example 10: https://www.ffi.no/en/research/n-vector/#example_10
     """
-    # Equivalent to: np.acos(nvector_arc_angle(n, u)) - np.pi/2
-    return -np.asin(np.squeeze(np.dot(n.T, u)))
+    # Array shapes:
+    #   n: (3, *shape1)
+    #   u: (3, *shape2)
+    #
+    # We want this to be "double vectorized", obtaining a result for each element of
+    # u and each element of n. That is, something like this:
+    #   for i, x in enumerate(n):
+    #     for j, y in enumerate(u):
+    #       result[i, j] = compute(x, y)
+    return nvector_arc_angle(*_broadcast_cartesian(n, u)) - np.pi / 2
 
 
 def nvector_direct(
@@ -291,7 +330,7 @@ def nvector_direct(
 
     .. warning:: n-vectors are expected to be unit vectors. This function does **not**
         check that inputs have unit norm. However, n-vectors produced by
-        :func:`lonlat_to_nvector_sphere` will be properly normalized.
+        :func:`lonlat_to_nvector` will be properly normalized.
 
     .. note:: If ``initial_azimuth_rad`` is shape ``(K, 1, 1)``, the result will be an
         "outer product" over initial positions and azimuths, of shape ``(K, 3, N)``.

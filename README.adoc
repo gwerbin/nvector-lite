@@ -63,22 +63,4 @@ hatch run dev:pytest
 
 == Examples
 
-=== Cross-track distance for every point in a motion track
-
-We are given ``N`` origin/destination pairs, and, for each pair, the motion
-track of an object that travelled from the origin to the destination.
-
-We would like to compute the cross-track distance of every point in each motion
-track, relative to the geodesic between its origin and destination.
-
-[,python]
-----
-from nvector_lite import nvector_cross_track_distance
-
-origin = ...       # 3 × N
-destination = ...  # 3 × N
-track = ...        # 3 × N
-
-xt = nvector_cross_track_distance(origin, destination, track)
-assert xt.shape == (track.shape[1],)
-----
+See `+examples/+`
