@@ -26,6 +26,7 @@ library.
 This is also useful for SQL-like database/query engines that support
 batched/vectorized Python UDFs, such as PySpark, DuckDB, and Snowflake.
 
+
 == Installation
 
 I will set up PyPI publishing and a stable versioning scheme eventually.
@@ -36,23 +37,20 @@ For now, install https://pip.pypa.io/en/stable/topics/vcs-support/#git[directly 
 pip install git+https://github.com/gwerbin/nvector-lite
 ----
 
+
+== Usage
+
+=== Examples
+
+Refer to the test suite, especially any test called `+test_example+`.
+
+
 == Development
 
 Development requires https://hatch.pypa.io/[Hatch].
 
-First, clone the Git repository.
-
-Then, set up our Hatch environments:
-
-[,shell]
-----
-hatch python install all
-hatch env create dev
-----
-
-Technically this is optional and will be done automatically by `+hatch run+`.
-But it's nice to have everything set up and ready to avoid a long wait for the
-first command.
+Then, just clone the Git repository. Hatch will automatically set up the project environment
+when you run a command for the first time.
 
 Run tests:
 
@@ -61,6 +59,19 @@ Run tests:
 hatch run dev:pytest
 ----
 
-== Examples
+Run an interactive Python console with hot-reloading enabled:
 
-See `+examples/+`
+[,shell]
+----
+hatch run dev:repl
+----
+
+Run any other command (e.g. Python) in the dev environment:
+
+[,shell]
+----
+hatch run dev:python ...
+hatch run dev:python -m pdb ...
+hatch run dev:/bin/sh ...
+watch -n 60 hatch run dev:pytest -k test_example
+----

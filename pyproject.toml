@@ -9,12 +9,19 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = 'nvector-lite'
-version = '0.1.2'
+version = '0.2.0'
 requires-python = '>=3.10'
 dependencies = ['numpy']
 
 [project.optional-dependencies]
-test = ['pytest', 'hypothesis', 'nvector', 'geographiclib', 'pyproj', 'mypy']
+test = [
+  'pytest',
+  'hypothesis',
+  'nvector',
+  'geographiclib',
+  'pyproj',
+  'mypy',
+]
 
 
 ## Setuptools
@@ -27,10 +34,14 @@ py-modules = ['nvector_lite']
 
 [tool.hatch.envs.test]
 features = ['test']
+[tool.hatch.envs.test.scripts]
+test = 'pytest {args}'
 
 [tool.hatch.envs.dev]
 template = 'test'
 extra-dependencies = ['ipython', 'pdbp']
+[tool.hatch.envs.dev.scripts]
+repl = 'ipython -i ipython_startup.py {args}'
 
 
 ## Pytest
