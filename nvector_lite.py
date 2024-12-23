@@ -113,31 +113,31 @@ from numpy.typing import NBitBase, NDArray
 
 
 _B = TypeVar("_B", bound=NBitBase)
-NVectorArray = NDArray[np.floating[_B]]
+NVectorArray: TypeAlias = NDArray[np.floating[_B]]
 
 
-def _validate(*vs: NVectorArray) -> None:
+def _validate(*vs: NVectorArray[Any]) -> None:
     for v in vs:
         if v.ndim == 0 or v.shape[0] != 3:
             raise ValueError("Input is not a valid n-vector array.")
 
 
-def _promote_shape(*vs: NVectorArray) -> Iterable[NVectorArray]:
+def _promote_shape(*vs: NVectorArray[_B]) -> Iterable[NVectorArray[_B]]:
     for v in vs:
         yield v[:, np.newaxis] if v.ndim == 1 else v
 
 
-def _dot_each(u: NVectorArray, v: NVectorArray,) -> NVectorArray:
+def _dot_each(u: NVectorArray[_B], v: NVectorArray[_B]) -> NVectorArray[_B]:
     r"""Dot product of every pair of corresponding n-vectors."""
     return np.sum(u * v, axis=0)
 
 
-def _cross_each(u: NVectorArray, v: NVectorArray,) -> NVectorArray:
+def _cross_each(u: NVectorArray[_B], v: NVectorArray[_B]) -> NVectorArray[_B]:
     r"""Cross product of every pair of corresponding n-vectors."""
     return np.cross(u, v, axis=0)
 
 
-def _norm_each(u: NVectorArray) -> NVectorArray:
+def _norm_each(u: NVectorArray[_B]) -> NVectorArray[_B]:
     return np.linalg.norm(u, axis=0)
 
 
@@ -150,12 +150,12 @@ def _broadcast_cartesian(u: NDArray[DTypeA], v: NDArray[DTypeB]) -> tuple[NDArra
     return u[u_slices], v[v_slices]
 
 
-def _dot_cartesian(u: NVectorArray, v: NVectorArray) -> NVectorArray:
+def _dot_cartesian(u: NVectorArray[_B], v: NVectorArray[_B]) -> NVectorArray[_B]:
     r"""Dot product of every pair of n-vectors in the Cartesian product of n-vectors."""
     return np.tensordot(u, v, axes=([0], [0]))
 
 
-def _normalize(v: NVectorArray, inplace: bool = False) -> NVectorArray:
+def _normalize(v: NVectorArray[_B], inplace: bool = False) -> NVectorArray[_B]:
     r"""Scale ("normalize") a vector to unit norm.
 
     :param v: The vector(s) to normalize.
@@ -182,7 +182,7 @@ def _normalize(v: NVectorArray, inplace: bool = False) -> NVectorArray:
     v /= v_max
 
     # Compute the norm(s) along the given axes.
-    v_norm: NVectorArray = np.linalg.norm(v, axis=0)
+    v_norm: NVectorArray[_B] = np.linalg.norm(v, axis=0)
 
     # Normalize along the remaining axes.
     # NOTE: This might result in `inf` or `nan` if the norm is 0 along any axis.
@@ -195,7 +195,7 @@ def lonlat_to_nvector(
     lon: NDArray[np.floating[_B]] | float,
     lat: NDArray[np.floating[_B]] | float,
     radians: bool = False,
-) -> NVectorArray:
+) -> NVectorArray[_B]:
     r"""Convert longitude and latitude to n-vector.
 
     :param lon: Longitude, in degrees or radians (see ``radians=``). Should be
@@ -218,7 +218,7 @@ def lonlat_to_nvector(
     lon = np.broadcast_to(lon, shape)
     lat = np.broadcast_to(lat, shape)
 
-    nvect: NVectorArray = np.empty((3, *shape), order="F")
+    nvect: NVectorArray[_B] = np.empty((3, *shape), order="F")
     np.stack(
         (
             # x: points to the North Pole (undefined°E, 0°N).
@@ -236,7 +236,7 @@ def lonlat_to_nvector(
 
 
 def nvector_to_lonlat(
-    nvect: NVectorArray, radians: bool = False
+    nvect: NVectorArray[_B], radians: bool = False
 ) -> tuple[NDArray[np.floating[_B]], NDArray[np.floating[_B]]]:
     r"""Convert n-vector to longitude and latitude.
 
@@ -263,9 +263,9 @@ def nvector_to_lonlat(
 
 
 def nvector_great_circle_normal(
-    v1: NVectorArray,
-    v2: NVectorArray
-) -> NVectorArray:
+    v1: NVectorArray[_B],
+    v2: NVectorArray[_B]
+) -> NVectorArray[_B]:
     r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors."""
     _validate(v1, v2)
     v1, v2 = _promote_shape(v1, v2)
@@ -274,7 +274,7 @@ def nvector_great_circle_normal(
     return n
 
 
-def nvector_arc_angle(v1: NVectorArray, v2: NVectorArray) -> NDArray[np.floating[_B]]:
+def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
     r"""Compute the arc angle between two n-vectors.
 
     Note that this is the great-circle distance on the unit sphere.
@@ -289,7 +289,7 @@ def nvector_arc_angle(v1: NVectorArray, v2: NVectorArray) -> NDArray[np.floating
     )
 
 
-def nvector_cross_track_distance(v1: NVectorArray, v2: NVectorArray, u: NVectorArray,) -> NDArray[np.floating[_B]]:
+def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
     r"""Compute the arc angle between ``u`` and its closest point along the geodesic between ``v1`` and ``v2``.
 
     Note that this is the great-circle distance on the unit sphere.
@@ -304,7 +304,7 @@ def nvector_cross_track_distance(v1: NVectorArray, v2: NVectorArray, u: NVectorA
     return nvector_cross_track_distance_from_normal(n, u)
 
 
-def nvector_cross_track_distance_from_normal(n: NVectorArray, u: NVectorArray) -> NDArray[np.floating[_B]]:
+def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
     r"""Compute the arc angle between ``u`` and its closest point the geodesic between ``v1`` and ``v2``.
 
     The difference between this and ``nvector_cross_track_distance`` is that here it is
@@ -321,10 +321,10 @@ def nvector_cross_track_distance_from_normal(n: NVectorArray, u: NVectorArray) -
 
 
 def nvector_direct(
-    initial_position_nvect: NVectorArray,
+    initial_position_nvect: NVectorArray[_B],
     distance_rad: float | NDArray[np.floating[_B]],
     initial_azimuth_rad: float | NDArray[np.floating[_B]],
-) -> NVectorArray:
+) -> NVectorArray[_B]:
     r"""Solve the "forward" or "direct" geodesic problem.
 
     Computes a new location from a starting point, a distance, and an initial azimuth.
@@ -369,7 +369,7 @@ def nvector_direct(
     )
 
     # Compute the location along the great-circle path of the direction vector.
-    final_position: NVectorArray = (
+    final_position: NVectorArray[_B] = (
         initial_position_nvect * np.cos(distance_rad) +
         initial_direction * np.sin(distance_rad)
     )
