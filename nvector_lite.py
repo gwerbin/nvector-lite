@@ -245,10 +245,12 @@ def nvector_to_lonlat(nvect: NVectorArray[_B], radians: bool = False) -> tuple[F
 
     :param nvect: n-vector array. First dimension must be size 3.
     :param radians: If true, output is returned in radians. Otherwise, output is returned
-        in degrees (the default setting).
+      in degrees (the default setting).
 
     :returns: A pair of arrays of shape ``shape`` where ``(3, *shape)`` is the shape of
-        the input. The first array is longitude, the second is latitude.
+      the input. The first array is longitude, the second is latitude. Longitude at the
+      North and South Poles is arbitrary, and depends on whatever Numpy ``atan2(0,0)``
+      returns.
     """
     _validate(nvect)
     nvect, = _promote_shape(nvect)
@@ -423,8 +425,8 @@ def nvector_polygon_contains_pole(polygon_nvects: FloatArray[Any]) -> tuple[bool
     northpole_nvect = np.eye(3, 1)
     southpole_nvect = -1.0 * northpole_nvect
 
-    # We "accumulate" boolean values by AND-ing them together. As soon as these
-    # accumulators becomes False, we stop iterating.
+    # We "accumulate" boolean values by AND-ing them together.
+    # We stop when one of these accumulators becomes False.
     contains_northpole = True
     contains_southpole = True
 
