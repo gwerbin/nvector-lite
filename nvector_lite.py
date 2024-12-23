@@ -273,11 +273,12 @@ def nvector_to_lonlat(nvect: NVectorArray[_B], radians: bool = False) -> tuple[F
     return lon, lat
 
 
-def nvector_great_circle_normal(
-    v1: NVectorArray[_B],
-    v2: NVectorArray[_B]
-) -> NVectorArray[_B]:
-    r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors."""
+def nvector_great_circle_normal(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> NVectorArray[_B]:
+    r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors.
+
+    .. warning:: For antipodal points (points on opposite sides of the Earth), the
+      great-circle plane is undefined, so this function might return unstable results.
+    """
     _validate(v1, v2)
     v1, v2 = _promote_shape(v1, v2)
     n = _cross_each(v1, v2)
