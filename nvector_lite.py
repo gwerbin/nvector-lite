@@ -165,40 +165,38 @@ def _dot_cartesian(u: NVectorArray[_B], v: NVectorArray[_B]) -> NVectorArray[_B]
     return np.tensordot(u, v, axes=([0], [0]))
 
 
-def _normalize(v: NVectorArray[_B], inplace: bool = False) -> NVectorArray[_B]:
+def _normalize(v: NVectorArray[_B], out: NVectorArray[_B] | None = None) -> NVectorArray[_B]:
     r"""Scale ("normalize") a vector to unit norm.
 
     :param v: The vector(s) to normalize.
-    :param inplace: If set, normalize the input vector in-place.
-        Otherwise (and by default), make a copy first.
+    :param out: Same as ``out=`` in Numpy itself.
 
     :returns: Normalized vector(s) of the same dtype and shape as ``v``.
 
     .. warning:: This function might return ``inf`` or ``nan`` if the norm is 0 along
-        the given axes.
+      the given axes.
     """
-    # The smallest "normal" floating-point number. Numbers smaller than this can suffer
-    # serious performance degradation on most processors.
-    tiny = np.finfo(v.dtype).tiny
+    # This function is based closely on the Python implementation by Brodtkorb.
 
-    if not inplace:
-        v = v.copy()
+    if out is None:
+        out = np.empty_like(v)
 
     # Scale down before computing the norm, to avoid precision loss.
     v_max = np.max(np.abs(v), axis=0)
-    # Add a tiny offset to avoid introducing divide-by-zero.
+    # Add a tiny offset (the smallest non-subnormal) to avoid divide-by-zero.
+    tiny = np.finfo(v.dtype).tiny
     if np.any(np.abs(v_max) <= tiny):
         v_max += tiny
-    v /= v_max
+    np.divide(v, v_max, out=out)
 
     # Compute the norm(s) along the given axes.
-    v_norm: NVectorArray[_B] = np.linalg.norm(v, axis=0)
+    v_norm: NVectorArray[_B] = np.linalg.norm(out, axis=0)
 
     # Normalize along the remaining axes.
     # NOTE: This might result in `inf` or `nan` if the norm is 0 along any axis.
-    v /= v_norm
+    np.divide(out, v_norm, out=out)
 
-    return v
+    return out
 
 
 def lonlat_to_nvector(
@@ -283,7 +281,7 @@ def nvector_great_circle_normal(
     _validate(v1, v2)
     v1, v2 = _promote_shape(v1, v2)
     n = _cross_each(v1, v2)
-    _normalize(n, inplace=True)
+    _normalize(n, out=n)
     return n
 
 
