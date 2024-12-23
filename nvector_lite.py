@@ -220,15 +220,18 @@ def lonlat_to_nvector(
     lon = np.broadcast_to(lon, shape)
     lat = np.broadcast_to(lat, shape)
 
-    nvect: NVectorArray[_B] = np.empty((3, *shape), order="F")
+    dtype = np.result_type(lon, lat)
+
+    nvect: NVectorArray[_B] = np.empty((3, *shape), dtype=dtype, order="F")
+    _cos_lat = np.cos(lat)
     np.stack(
         (
-            # x: points to the North Pole (undefined°E, 0°N).
+            # x: points to the North Pole
             np.sin(lat),
-            # y: points to 90°E, 0°N.
-            np.cos(lat) * np.sin(lon),
-            # z: points to 0°E, 0°N.
-            -np.cos(lat) * np.cos(lon),
+            # y: points to 90°E, 0°N
+            _cos_lat * np.sin(lon),
+            # z: points to 0°E, 0°N
+            -_cos_lat * np.cos(lon),
         ),
         axis=0,
         out=nvect,
