@@ -1,7 +1,7 @@
-r"""Lightweigh n-vector functionality.
+r"""N-Vector Lite: an efficient implementation of the n-vector horizontal position system.
 
-This module is heavily based on the original Nvector Python library, which is
-distributed under a BSD 3-Clause license.
+About this library
+==================
 
 This implementation is hard-coded to use a spherical Earth model in the the "E"
 reference frame from Gade (2010), for implementation simplicity. The choice of reference
@@ -9,72 +9,100 @@ frame does not affect any of the results of geodesic calculations. However it is
 important to know the reference frame when converting between n-vector and other
 representations, and when interoperating with other libraries.
 
-An "n-vector" is a 3-vector. In our implementation, an array of shape ``(3, N)``
+An "n-vector" is a 3-vector. In our implementation, an array of shape ``(N, 3)``
 represents a collection of ``N`` n-vectors.
 
 In certain cases, only "scalar" n-vector arrays are accepted, i.e. arrays strictly of
-shape ``(3, 1)``.
+shape ``(1, 3)``.
 
-1-d arrays of shape ``(3,)`` are considered scalar n-vectors and are upgraded to 2-d
-arrays of shape ``(3,1)`` (column vectors).
+1-d arrays of shape ``(3,)`` represent single n-vectors, and are upgraded to 2-d arrays
+of shape ``(1, 3)`` (row vectors).
 
-Multidimensional collections of n-vectors should also work, e.g. ``(3, K, M, N)``
-representing a K×M×N array of n-vectors. But that case is not tested, and should be
-considered experimental at best.
+Multidimensional collections of n-vectors are also supported, e.g. ``(K, M, N, 3)``
+representing a K×M×N array of n-vectors.
 
-N-vectors in spaces other than 3 dimensions are not supported.
+N-vectors in spaces other than 3-dimensional Cartesian Earth-centered Earth-fixed (ECEF)
+are not supported.
 
-
-Background
-----------
+About the n-vector system
+=========================
 
 The "n-vector" representation of horizontal position represents each point on the
-surface of the earth as the unit normal vector to that point on the earth. "Height" or
-"altitude" is represented by scaling these unit vectors. This representation is valid
-for any spherical or ellipsoidal Earth model, as long as the normal vectors have
-a closed-form expression.
+surface of the earth as the unit normal vector to that point on the earth ([Gade2010]_,
+[GadeHome], [GadeExplained]). This representation is valid for any spherical or
+ellipsoidal Earth model, as long as the normal vectors have a closed-form expression.
 
 The actual vectors resulting from this representation are dependent on choosing
-a particular coordinate reference frame. [Gade 2010] prefers the "E" reference frame,
-which is an Earth-centered and Earth-fixed (ECEF) or "geocentric" frame.
+a particular coordinate reference frame. [Gade2010]_ prefers the :math:`E` reference frame,
+which is an Earth-centered and Earth-fixed (ECEF) or "geocentric" frame [WikipediaECEF]_.
 
-x is the Earth's rotation axis.
-The North Pole (90°N, "undefined" °E) is ``(1,0,0)``.
-y and z form the equatorial plane.
-The point 0°N,0°E is ``(0,0,1)`` and 0°N,90°E is ``(0,1,0)``.
+This :math:`E` frame is decomposed in 3 dimensions:
+
+* The ``x`` dimension is the Earth's rotation axis.
+* The ``y`` and ``z`` dimensions form the equatorial plane.
+* The North Pole (90°N, undefined/arbitrary°E) is ``(1,0,0)``.
+* The point 0°N, 0°E is ``(0,0,1)``
+* The point 0°N, 90°E is ``(0,1,0)``.
 
 This frame is slightly unintuitive compared to our usual mental model of a globe, where
 North is "up". But it has several desirable properties for motion tracking of objects
-(especially airplanes), and it is the reference frame used throughout [Gade 2010].
+(especially airplanes), and it is the reference frame used throughout [Gade2010]_.
 
-See also: https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system
-
-Note that in the n-vector representation, great-circle distances are represented as arc
-angles (in radians). In a spherical model, an arc angle is simply the fraction of the
-Earth circumference (2π) traveled over the great-circle path. Therefore arc angles can
-be converted to surface distances by multiplying by the sphere radiug by the sphere
-radius. See:
-
-• https://math.stackexchange.com/q/3316069
-• https://math.stackexchange.com/q/3326426
-
+Note that in the n-vector representation, geodesic distances between n-vectors are
+represented as arc angles (in radians). In a spherical model, an arc angle is simply the
+fraction of the Earth circumference (2π) traveled over the great-circle path. Therefore
+an arc angle can be converted to a (spherical) surface distance by multiplying by the
+arc angle by the sphere radius. See [MathSE1]_ and [MathSE2]_.
 
 References
------------
+==========
 
-``[Gade 2010]``:
-Gade, K. (2010). A Non-singular Horizontal Position Representation. Journal of Navigation, 63, 395-417.
+.. [Gade2010] Kenneth Gade. A nonsingular horizontal position representation.
+  The Journal of Navigation, 63(3):395–417, 2010.
+  `DOI: 10.1017/S0373463309990415 <https://doi.org/10.1017/S0373463309990415>`_.
+  `Full text PDF <http://www.navlab.net/Publications/A_Nonsingular_Horizontal_Position_Representation.pdf>`_,
+  `Journal homepage: <https://www.cambridge.org/core/journals/journal-of-navigation/article/abs/nonsingular-horizontal-position-representation/9DA5AFB5EC91CFF0E755C18BBAA37171>`_.
 
-• DOI: <https://doi.org/10.1017/S0373463309990415>
-• Full text PDF: <https://www.navlab.net/Publications/A_Nonsingular_Horizontal_Position_Representation.pdf>
-• Journal: <https://www.cambridge.org/core/journals/journal-of-navigation/article/abs/nonsingular-horizontal-position-representation/9DA5AFB5EC91CFF0E755C18BBAA37171>
+.. [GadeHome] Kenneth Gade. The N-vector page.
+  https://www.ffi.no/en/research/n-vector/.
 
-``[Nvector 2022]``:
-Brodtkorb, Per A. (2022). nvector (Python library), version 0.7.7.
+.. [GadeExplained] Kenneth Gade. N-vector explained.
+  https://www.ffi.no/en/research/n-vector/n-vector-explained.
 
-• PyPI: <https://pypi.org/project/nvector>
-• Source code: <https://github.com/pbrod/nvector>
-• Documentation: <https://nvector.readthedocs.io/>
+.. [WikipediaECEF] Earth-centered, Earth-fixed coordinate system.
+  Wikipedia.
+  https://en.wikipedia.org/wiki/Earth-centered,_Earth-fixed_coordinate_system
+
+.. [MathSE1] Angular distance from radius of sphere and distance along circumference.
+  Math StackExchange.
+  https://math.stackexchange.com/q/3316069.
+
+.. [MathSE2] Angular distance from radius of sphere and distance along circumference.
+  Math StackExchange.
+  https://math.stackexchange.com/q/3326426.
+
+.. [GadeDownloads] Kenneth Gade. N-vector downloads.
+  https://www.ffi.no/en/research/n-vector/n-vector-downloads.
+  `Source code (Git) <https://github.com/FFI-no/n-vector>`_.
+
+.. [Brodtkorb] Per A. Brodtkorb. nvector.
+  `Documentation <https://nvector.readthedocs.io/>`_.
+  `PyPI <https://pypi.org/project/nvector>`_.
+  `Source code (Git) <https://github.com/pbrod/nvector>`_.
+
+.. [Veness] Chris Veness. Vector-based spherical geodesy.
+  https://www.movable-type.co.uk/scripts/latlong-vectors.html.
+  `Archive 1 <https://web.archive.org/web/20241126215432/https://www.movable-type.co.uk/scripts/latlong-vectors.html>`_.
+  `Archive 2 <https://archive.is/tH8Fm>`_.
+
+.. [Brouwers] Jean Brouwers. PyGeodesy.
+  `Documentation <https://mrjean1.github.io/PyGeodesy/>`_.
+  `PyPI <https://pypi.org/project/PyGeodesy/>`_.
+  `Source code (Git) <https://github.com/mrJean1/PyGeodesy>`_.
+
+.. [Spinielli] Enrico Spinielli. nvctr.
+  `CRAN <https://cran.r-project.org/package=nvctr>`_.
+  `Source code (Git) <https://github.com/euctrl-pru/nvctr>`_.
 """
 
 from collections.abc import Iterable, Sequence
