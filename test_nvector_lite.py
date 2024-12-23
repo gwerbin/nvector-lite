@@ -19,6 +19,7 @@ from nvector_lite import (
     nvector_direct,
     nvector_polygon_contains_pole,
     nvector_cross_track_distance,
+    nvector_arc_angle,
 )
 
 # "The Tau Manifesto": https://tauday.com/
@@ -75,6 +76,15 @@ class test_normalize:
 
         assert u.shape == v.shape
         np.testing.assert_allclose(np.linalg.norm(u, axis=0, keepdims=True), 1.0)
+
+
+class test_nvector_arc_angle:
+    def test_example(self) -> None:
+        result = nvector_arc_angle(
+            _normalize(np.asarray([1,2,3], dtype=float)),
+            _normalize(np.asarray([4,5,6], dtype=float)),
+        )
+        np.testing.assert_allclose(result, 0.22572613)
 
 
 class test_lonlat_to_nvector:

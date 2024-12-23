@@ -286,6 +286,10 @@ def nvector_great_circle_normal(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> N
     return n
 
 
+def _as_scalar(x: FloatArray[_B]) -> FloatArray[_B] | np.float64 | float:
+    return x.item() if x.size == 1 else x
+
+
 def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[_B]:
     r"""Compute the arc angle between two n-vectors.
 
@@ -295,10 +299,16 @@ def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[
     """
     _validate(v1, v2)
     v1, v2 = _promote_shape(v1, v2)
-    return np.atan2(
-        _norm_each(_cross_each(v1, v2)),
-        _dot_each(v1, v2),
-    )
+
+    # https://math.stackexchange.com/q/1143354/117452
+    # https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
+    # TODO: Assuming inputs are theoretically unit norm, how safe is it to assume `n1 == n2 == 1.0`?
+    n1 = _norm_each(v1)
+    n2 = _norm_each(v2)
+    result = 2 * np.atan2(_norm_each(n2 * v1 - n1 * v2), _norm_each(n2 * v1 + n1 * v2))
+    # result = np.atan2(_norm_each(_cross_each(v1, v2)), _dot_each(v1, v2))
+
+    return _as_scalar(result)
 
 
 def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: NVectorArray[_B]) -> FloatArray[_B]:
@@ -369,6 +379,7 @@ def nvector_direct(
     #     vector. See e.g. https://math.stackexchange.com/a/23261.
     #  3. Compute the components of the direction vector decomposed into the East and
     #     North unit vectors, and add them to find the direction vector itself.
+    # FIXME: Apparently unit_east can be numerically unstable very close to poles.
     unit_east = _normalize(_cross_each(unit_basis_0, initial_position_nvect))
     unit_north = _cross_each(initial_position_nvect, unit_east)
     initial_direction = (
@@ -400,6 +411,7 @@ def _dot_1d_scalar(x: FloatArray[_B], y: FloatArray[_B]) -> float:
 
 # TODO: Does this work with clockwise polygons?
 # TODO: Add optional input validation.
+# TODO: Contains vs. covers -- what if the pole is a vertex?
 def nvector_polygon_contains_pole(polygon_nvects: FloatArray[Any]) -> tuple[bool, bool]:
     r"""Check if a polygon (with n-vector vertices) contains the North or South Pole.
 
