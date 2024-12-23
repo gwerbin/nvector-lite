@@ -24,6 +24,14 @@ representing a K×M×N array of n-vectors.
 N-vectors in spaces other than 3-dimensional Cartesian Earth-centered Earth-fixed (ECEF)
 are not supported.
 
+.. warning:: N-vectors are expected to be unit vectors. For performance, this library
+  does **not** check that inputs have unit norm. N-vectors produced by
+  :func:`lonlat_to_nvector` will be properly normalized, so most usage should be "safe"
+  with respect to the unit-norm assumption. However, n-vector data received from
+  untrusted sources should be checked for unit norm, otherwise silently incorrect
+  results will be produced.
+
+
 About the n-vector system
 =========================
 
@@ -201,15 +209,15 @@ def lonlat_to_nvector(
     r"""Convert longitude and latitude to n-vector.
 
     :param lon: Longitude, in degrees or radians (see ``radians=``). Should be
-        broadcast-compatible with ``lat``.
+      broadcast-compatible with ``lat``.
     :param lat: Latitude, in degrees or radians (see ``radians=``). Should be
-        broadcast-compatible with ``lon``.
+      broadcast-compatible with ``lon``.
     :param radians: If true, input is expected in radians. Otherwise, input is expected
-        in degrees (the default setting).
+      in degrees (the default setting).
 
     :returns: An n-vector array of shape ``(3, *shape)`` where ``shape`` is the result of
-        broadcasting ``lon`` and ``lat``. The new leading axis represents the
-        n-vector coordinates in the "E" reference frame.
+      broadcasting ``lon`` and ``lat``. The new leading axis represents the
+      n-vector coordinates in the "E" reference frame.
     """
     if not radians:
         lon = np.radians(lon)
@@ -341,10 +349,6 @@ def nvector_direct(
 
     :returns: New n-vector positions computed from the initial positions, distances and
         azimuths. Shape will be ``(3, N)`` or ``(K, 3, N)``, depending on input shapes.
-
-    .. warning:: n-vectors are expected to be unit vectors. This function does **not**
-        check that inputs have unit norm. However, n-vectors produced by
-        :func:`lonlat_to_nvector` will be properly normalized.
 
     .. note:: If ``initial_azimuth_rad`` is shape ``(K, 1, 1)``, the result will be an
         "outer product" over initial positions and azimuths, of shape ``(K, 3, N)``.
