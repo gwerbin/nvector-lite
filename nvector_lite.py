@@ -113,7 +113,9 @@ from numpy.typing import NBitBase, NDArray
 
 
 _B = TypeVar("_B", bound=NBitBase)
-NVectorArray: TypeAlias = NDArray[np.floating[_B]]
+FloatArray: TypeAlias = NDArray[np.floating[_B]]
+AngleArray: TypeAlias = FloatArray[_B]
+NVectorArray: TypeAlias = FloatArray[_B]
 
 
 def _validate(*vs: NVectorArray[Any]) -> None:
@@ -192,8 +194,8 @@ def _normalize(v: NVectorArray[_B], inplace: bool = False) -> NVectorArray[_B]:
 
 
 def lonlat_to_nvector(
-    lon: NDArray[np.floating[_B]] | float,
-    lat: NDArray[np.floating[_B]] | float,
+    lon: FloatArray[_B] | float,
+    lat: FloatArray[_B] | float,
     radians: bool = False,
 ) -> NVectorArray[_B]:
     r"""Convert longitude and latitude to n-vector.
@@ -235,9 +237,7 @@ def lonlat_to_nvector(
     return nvect
 
 
-def nvector_to_lonlat(
-    nvect: NVectorArray[_B], radians: bool = False
-) -> tuple[NDArray[np.floating[_B]], NDArray[np.floating[_B]]]:
+def nvector_to_lonlat(nvect: NVectorArray[_B], radians: bool = False) -> tuple[FloatArray[_B], FloatArray[_B]]:
     r"""Convert n-vector to longitude and latitude.
 
     :param nvect: n-vector array. First dimension must be size 3.
@@ -274,7 +274,7 @@ def nvector_great_circle_normal(
     return n
 
 
-def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
+def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[_B]:
     r"""Compute the arc angle between two n-vectors.
 
     Note that this is the great-circle distance on the unit sphere.
@@ -289,7 +289,7 @@ def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> NDArray[np.
     )
 
 
-def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
+def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: NVectorArray[_B]) -> FloatArray[_B]:
     r"""Compute the arc angle between ``u`` and its closest point along the geodesic between ``v1`` and ``v2``.
 
     Note that this is the great-circle distance on the unit sphere.
@@ -304,7 +304,7 @@ def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: 
     return nvector_cross_track_distance_from_normal(n, u)
 
 
-def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArray[_B]) -> NDArray[np.floating[_B]]:
+def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArray[_B]) -> FloatArray[_B]:
     r"""Compute the arc angle between ``u`` and its closest point the geodesic between ``v1`` and ``v2``.
 
     The difference between this and ``nvector_cross_track_distance`` is that here it is
@@ -322,8 +322,8 @@ def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArra
 
 def nvector_direct(
     initial_position_nvect: NVectorArray[_B],
-    distance_rad: float | NDArray[np.floating[_B]],
-    initial_azimuth_rad: float | NDArray[np.floating[_B]],
+    distance_rad: float | FloatArray[_B],
+    initial_azimuth_rad: float | FloatArray[_B],
 ) -> NVectorArray[_B]:
     r"""Solve the "forward" or "direct" geodesic problem.
 
@@ -382,7 +382,7 @@ def _squeezable(x: NDArray[Any]) -> bool:
     return sum(ax_len > 1 for ax_len in x.shape) == 1
 
 
-def _dot_1d_scalar(x: NDArray[np.floating[_B]], y: NDArray[np.floating[_B]]) -> float:
+def _dot_1d_scalar(x: FloatArray[_B], y: FloatArray[_B]) -> float:
     r"""Scalar dot product of two 1-D column vectors."""
     if not _squeezable(x) or not _squeezable(y):
         raise ValueError("Inputs must have exactly one non-trivial axis.")
@@ -392,9 +392,7 @@ def _dot_1d_scalar(x: NDArray[np.floating[_B]], y: NDArray[np.floating[_B]]) -> 
 
 # TODO: Does this work with clockwise polygons?
 # TODO: Add optional input validation.
-def nvector_polygon_contains_pole(
-    polygon_nvects: NDArray[np.floating[Any]],
-) -> tuple[bool, bool]:
+def nvector_polygon_contains_pole(polygon_nvects: FloatArray[Any]) -> tuple[bool, bool]:
     r"""Check if a polygon (with n-vector vertices) contains the North or South Pole.
 
     :param polygon_nvects: A "polygon" formed by an array of n-vectors, of shape
