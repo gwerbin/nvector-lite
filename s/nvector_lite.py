@@ -346,15 +346,20 @@ def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[
     Note that this is the great-circle distance on the unit sphere.
     To get great-circle/geodesic distance on the surface of a non-unit sphere, multiply
     this result by the sphere radius.
+
+    See N-Vector Example 5: https://www.ffi.no/en/research/n-vector/#example_5
     """
     v1, v2 = _preprocess(v1, v2)
 
     # https://math.stackexchange.com/q/1143354/117452
     # https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
     # TODO: Assuming inputs are theoretically unit norm, how safe is it to assume `n1 == n2 == 1.0`?
-    n1 = _norm_each(v1)
-    n2 = _norm_each(v2)
-    result = 2 * np.atan2(_norm_each(n2 * v1 - n1 * v2), _norm_each(n2 * v1 + n1 * v2))
+    # n1 = _norm_each(v1)
+    # n2 = _norm_each(v2)
+    # np.testing.assert_allclose(n1, 1.0)
+    # np.testing.assert_allclose(n2, 1.0)
+    result = 2 * np.atan2(_norm_each(v1 - v2), _norm_each(v1 + v2))
+    # result = 2 * np.atan2(_norm_each(n2 * v1 - n1 * v2), _norm_each(n2 * v1 + n1 * v2))
     # result = np.atan2(_norm_each(_cross_each(v1, v2)), _dot_each(v1, v2))
 
     return _as_scalar(result)
