@@ -366,7 +366,72 @@ def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[
     return _as_scalar(result)
 
 
-def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: NVectorArray[_B]) -> FloatArray[_B]:
+# TODO: Docs
+def nvector_closest_point_along_arc(
+    v1: NVectorArray[_B],
+    v2: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> NVectorArray[_B]:
+    """Find the closest point on a great circle to a given point.
+
+    The great circle is defined by points v1 and v2.
+
+    :param v1: The first n-vector that defines the great circle.
+    :param v2: The second n-vector that defines the great circle.
+    :param u: The point for which we are seeking the closest point on the great circle.
+    """
+    v1, v2, u = _preprocess(v1, v2, u)
+    n = nvector_great_circle_normal(v1, v2)
+    return nvector_closest_point_from_normal(n, u)
+
+
+# TODO: More docs
+def nvector_closest_point_from_normal(
+    n: NVectorArray[_B],
+    u: NVectorArray[_B]
+) -> NVectorArray[_B]:
+    """Find the closest point on a great circle to a given point.
+
+    The great circle is provided as the (unit) normal vector of the great-circle plane.
+
+    :param n: The normal vector of the great circle along which we are seeking the closest point.
+    :param u: The point for which we are seeking the closest point on the great circle.
+    """
+
+    n, u = _preprocess(n, u)
+
+    # We have 2 points A and B which define a great circle, with normal vector N.
+    #   This great circle is like the equator, and its corresponding plane is the XY plane.
+    # We have a 3rd point C for which we are trying to find the closest point on the AB
+    #   arc. (C is parameter "u" in this function.)
+    # The normal vector N is like the north pole, or the Z axis.
+    # All great circles that pass through N are orthogonal to the AB arc / XY plane.
+    # The great-circle plane corresponding to the NC arc is like the XZ plane.
+    # We want the location where that NC great circle intersects the AB great circle,
+    #   i.e. where the XZ and XY planes intersect, which is the Y axis vector.
+    # We already have the XY and XZ planes. The normal vector of the XY plane (vector N)
+    #   is the Z axis vector. The normal vector of the XZ plane (vector O) is the X axis
+    #   vector.
+    # To find the Y axis vector, we need a vector that is orthogonal to both N and O.
+    # Thus, we have found a vector which:
+    #   Lies on the AB great circle
+    #   Also lies on a great circle that
+    #     passes through C and
+    #     is orthogonal to AB
+
+    n = n                      # Normal vector of the great-circle plane formed by A and B
+    o = _cross_each(u, n)  # Normal vector of the great-circle plane formed by N and C
+    p = _cross_each(n, o)      # Normal vector of the great-circle plane formed by N and O
+    closest = p
+    _normalize(closest, out=closest)
+    return closest
+
+
+def nvector_crosstrack_distance(
+    v1: NVectorArray[_B],
+    v2: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> FloatArray[_B]:
     r"""Compute the arc angle between ``u`` and its closest point along the geodesic between ``v1`` and ``v2``.
 
     Note that this is the great-circle distance on the unit sphere.
@@ -375,16 +440,19 @@ def nvector_cross_track_distance(v1: NVectorArray[_B], v2: NVectorArray[_B], u: 
 
     See N-vector Example 10: https://www.ffi.no/en/research/n-vector/#example_10
     """
-    _validate(v1, v2, u)
-    v1, v2, u = _promote_shape(v1, v2, u)
+    v1, v2, u = _preprocess(v1, v2, u)
     n = nvector_great_circle_normal(v1, v2)
-    return nvector_cross_track_distance_from_normal(n, u)
+    y = nvector_crosstrack_distance_from_normal(n, u)
+    return y
 
 
-def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArray[_B]) -> FloatArray[_B]:
+def nvector_crosstrack_distance_from_normal(
+    n: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> FloatArray[_B]:
     r"""Compute the arc angle between ``u`` and its closest point the geodesic between ``v1`` and ``v2``.
 
-    The difference between this and ``nvector_cross_track_distance`` is that here it is
+    The difference between this and ``nvector_crosstrack_distance`` is that here it is
     assumed that we already know the great-circle-plane normal vector ``n``. Useful to
     compute the cross-track distances of many points with respect to many tracks,
     if we want to pre-compute and save the normal vector of each track.
@@ -394,7 +462,81 @@ def nvector_cross_track_distance_from_normal(n: NVectorArray[_B], u: NVectorArra
 
     See N-vector Example 10: https://www.ffi.no/en/research/n-vector/#example_10
     """
-    return nvector_arc_angle(n, u) - np.pi / 2
+    n, u = _preprocess(n, u)
+    return nvector_arc_angle(n, u) - (np.pi / 2)
+
+
+# TODO: Docs (this is described in Example 10)
+def nvector_alongtrack_distance(
+    v1: NVectorArray[_B],
+    v2: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> FloatArray[_B]:
+    v1, v2, u = _preprocess(v1, v2, u)
+    n = nvector_great_circle_normal(v1, v2)
+    return nvector_alongtrack_distance_from_normal(v1, n, u)
+
+
+# TODO: Docs (this is described in Example 10)
+def nvector_alongtrack_distance_from_normal(
+    v1: NVectorArray[_B],
+    n: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> FloatArray[_B]:
+    v1, n, u = _preprocess(v1, n, u)
+    p = nvector_closest_point_from_normal(n, u)
+    x = nvector_arc_angle(v1, p)
+    return x
+
+
+# TODO: Docs (this is described in Example 10)
+def nvector_crosstrack_alongtrack_distance(
+    v1: NVectorArray[_B],
+    v2: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> tuple[FloatArray[_B], FloatArray[_B]]:
+    v1, v2, u = _preprocess(v1, v2, u)
+    n = nvector_great_circle_normal(v1, v2)
+    return nvector_crosstrack_alongtrack_distance_from_normal(v1, n, u)
+
+
+# TODO: Docs (this is described in Example 10)
+def nvector_crosstrack_alongtrack_distance_from_normal(
+    v1: NVectorArray[_B],
+    n: NVectorArray[_B],
+    u: NVectorArray[_B],
+) -> tuple[FloatArray[_B], FloatArray[_B]]:
+    v1, n, u = _preprocess(v1, n, u)
+    p = nvector_closest_point_from_normal(n, u)
+    x = nvector_arc_angle(v1, p)
+    y = nvector_arc_angle(u, p)
+    return x, y
+
+
+# TODO: Docs (Example 6 -- maybe?)
+def nvector_interpolate(v1: NVectorArray[_B], v2: NVectorArray[_B], t: float) -> NVectorArray[_B]:
+    r"""Spherical linear interpolation between n-vectors (SLERP)."""
+    v1, v2 = _preprocess(v1, v2)
+    if not (0 <= t <= 1):
+        raise ValueError("t must be in [0, 1]")
+
+    # Linear interpolation turns out to work without any adjustments!
+    vt = v1 + t * (v2 - v1)
+
+    # omega = nvector_arc_angle(v1, v2)
+    # if np.mean(np.abs(omega)) < 1e-10:
+    #     # In really small angles, standard linear interpolation is close enough
+    #     vt = v1 + t * (v2 - v1)
+    # else:
+    #     # Spherical Linear Interpolation (SLERP)
+    #     sin_omega = np.sin(omega)
+    #     vt = (
+    #         (np.sin((1-t) * omega) / sin_omega) * v1 +
+    #         (np.sin(t * omega) / sin_omega) * v2
+    #     )
+
+    _normalize(vt, out=vt)
+    return vt
 
 
 def nvector_direct(
