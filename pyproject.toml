@@ -15,11 +15,12 @@ dependencies = ['numpy']
 
 [project.optional-dependencies]
 test = [
-  'pytest',
-  'hypothesis',
-  'nvector',
-  'geographiclib',
-  'pyproj',
+  'pytest ~= 8.0',
+  'hypothesis ~= 6.0',
+  'nvector ~= 1.0',
+  'geographiclib ~= 2.0',
+  'pyproj ~= 3.6',
+  # mypy v1.10 and typing-extensions v4.10: added TypeIs support
   'mypy ~= 1.10',
   'typing-extensions >= 4.10.0 ; python_version < "3.13"',
 ]
@@ -55,7 +56,7 @@ repl = 'ipython -i scripts/ipython_startup.py {args}'
 
 [tool.pytest.ini_options]
 
-minversion = '7.0'
+minversion = '8.0'
 
 # • Use the modern "importlib" import mode
 # • Make test failure reports less enormous
