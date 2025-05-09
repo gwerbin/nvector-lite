@@ -27,10 +27,16 @@ test = [
 ## Setuptools
 
 [tool.setuptools]
+package-dir = {'' = './s'}
 py-modules = ['nvector_lite']
 
 
 ## Hatch
+
+[tool.hatch.build.targets.sdist]
+sources = ['./s']
+[tool.hatch.build.targets.wheel]
+sources = ['./s']
 
 [tool.hatch.envs.test]
 features = ['test']
@@ -57,7 +63,7 @@ minversion = '7.0'
 # NOTE: Don't include --dist=loadscope here because pytest-xdist isn't installed in CI
 addopts = '--import-mode=importlib --tb=short -r a -p no:hypothesispytest'
 
-testpaths = ['./test_nvector_lite.py']
+testpaths = ['./t']
 
 python_files = ['test_*.py', 'test.py']
 python_classes = ['Test*', 'test_*']
@@ -70,7 +76,7 @@ python_functions = ['test_*']
 
 python_version = '3.10'
 strict = true
-files = ['nvector_lite.py', 'test_nvector_lite.py']
+files = ['s/', 't/']
 
 plugins = ['numpy.typing.mypy_plugin']
 
