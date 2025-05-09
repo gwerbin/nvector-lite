@@ -8,10 +8,15 @@ system] in Python and Numpy. It is currently **alpha quality**.
 
 Note that this project is developed/maintained as a side project in my spare
 time. See `+LICENSE.txt+` for license terms, including a total disclaimer of
-warranty. Contributions of bugfixes and features are accepted, but I make no
-promises about the timeliness of my response.
+warranty. Contributions of bugfixes/corrections, features, tests, and
+documentation are accepted, but I make no promises about the timeliness of my
+response.
 
-For an explanation of the n-vector system, refer to the `+nvector_lite.py+` docstring.
+For an explanation of the n-vector system and additional design details, refer
+to the `+nvector_lite.py+` docstring.
+I have no plans to support non-spherical Earth models for the time being, in
+part because the math is beyond me and in part because I want to focus on the
+core feature set first.
 
 This library is designed to work with arbitrary-shape/size Numpy arrays. By
 comparison, the original https://pypi.org/project/nvector[nvector]
@@ -25,6 +30,37 @@ library.
 
 This is also useful for SQL-like database/query engines that support
 batched/vectorized Python UDFs, such as PySpark, DuckDB, and Snowflake.
+
+=== Features
+
+In progress or completed:
+
+* N-vector operations:
+  * Conversion from lon,lat to n-vector
+  * Conversion from n-vector to lon,lat
+  * Unit normal vector of the great circle formed by two n-vectors
+  * Arc angle between two n-vectors
+  * Interpolation along the great circle arc between two n-vectors
+  * "Direct"/"forward" geodesic problem: obtain a new n-vector from a starting point, distance, and azimuth
+  * Intersection n-vector between two arcs formed by two pairs of n-vectors
+  * Cross-track arc angle of an n-vector with respect to the great circle arc between two n-vectors
+  * Along-track arc angle of an n-vector with respect to the great circle arc between two n-vectors
+  * Check if a polygon of n-vectors contains the North Pole or South Pole
+* Extensive test coverage
+
+Planned:
+
+* More n-vector operations
+* More test coverage
+* Continuous integration
+* Distribution and automation thereof:
+  * PyPI
+  * Conda Forge
+* Documentation:
+  * Tutorials / usage guides
+  * API reference
+  * Usage comparison with other implementations
+* Benchmark suite, including comparison with other implementations
 
 
 == Installation

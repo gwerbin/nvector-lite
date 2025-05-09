@@ -1,0 +1,35 @@
+v0.2.0
+======
+
+API
+---
+* Removed automatic "double broadcasting" from cross-track distance; users can do it themselves now.
+* Correctly implemented both cross-track and along-track distances
+
+Documentation
+----
+* Update and expand main docstring.
+* Add warnings about non-unit vector inputs and antipodal points.
+* Clarify nvector -> longitude conversion behavior at poles.
+* Moved examples/ into the test suite for now.
+* Updated developer instructions in Readme.
+
+Tests
+-----
+* Split tests into "API" and "internal" suites.
+
+Development environment
+-----------------------
+* Added more Hatch helper scripts.
+* Added an IPython startup script with hot reloading.
+* Switched to UV
+
+Internal
+--------
+* Switch to an even-more-stable arc angle formula.
+* Refactored usage of _validate() and _promote_shape().
+* Used internal helper functions in more places instead of "raw" Numpy funcs.
+* Removed unnecessary keepdims=True usage in normalize().
+* Improved normalize() performance with in-place operations, and optional out= kwarg.
+* Improved type hints.
+* Renamed _dot_1d() to _dot_1d_scalar() and replaced np.dot() with less-ambiguous np.inner().
