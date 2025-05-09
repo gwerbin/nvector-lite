@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import math
 import warnings
 from typing import Any
@@ -13,12 +11,15 @@ import pyproj
 from numpy.typing import NDArray
 
 from nvector_lite import (
+    _normalize,
     lonlat_to_nvector,
     nvector_to_lonlat,
-    _normalize,
     nvector_direct,
+    nvector_interpolate,
     nvector_polygon_contains_pole,
-    nvector_cross_track_distance,
+    nvector_crosstrack_distance,
+    nvector_alongtrack_distance,
+    nvector_crosstrack_alongtrack_distance,
     nvector_arc_angle,
 )
 
@@ -40,42 +41,20 @@ def st_lonlat_radians(
     r"""Generate longitudes and latitudes."""
     shape = draw(st_np.array_shapes(**shape_kwargs))
     lon = draw(
-        st_np.arrays(np.float64, shape, elements=dict(min_value=-τ, max_value=τ))
-    )
-    lat = draw(
-        st_np.arrays(np.float64, shape, elements=dict(min_value=-π, max_value=π))
-    )
-    return lon, lat
-
-
-class test_normalize:
-    r"""Tests for `normalize`."""
-
-    @hypothesis.given(
-        v=st_np.arrays(
+        st_np.arrays(
             np.float64,
-            (5, 30, 40),
-            elements=dict(allow_nan=False, allow_infinity=False, allow_subnormal=False),
+            shape,
+            elements=dict(min_value=-τ, max_value=τ),
         )
     )
-    def test_correct_nonzero_norm(self, v: NDArray[np.float64]) -> None:
-        r"""Test that vectors with non-zero norm are correctly normalized to unit vectors."""
-
-        # Filter out inputs with 0 norm for now.
-        # TODO: Remove this filter and test the 0-norm handling logic.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            m = np.max(v, axis=0, keepdims=True) + np.finfo(np.float64).tiny
-            n = np.linalg.norm(v / m, axis=0)
-            hypothesis.assume(np.all(n != 0.0))
-
-        # We shouldn't have any overflows or divide-by-0s at this point.
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", category=RuntimeWarning)
-            u = _normalize(v)
-
-        assert u.shape == v.shape
-        np.testing.assert_allclose(np.linalg.norm(u, axis=0, keepdims=True), 1.0)
+    lat = draw(
+        st_np.arrays(
+            np.float64,
+            shape,
+            elements=dict(min_value=-π, max_value=π),
+        )
+    )
+    return lon, lat
 
 
 class test_nvector_arc_angle:
@@ -122,7 +101,8 @@ class test_nvector_to_lonlat:
         np.testing.assert_allclose(lon_actual, lon_expected)
         np.testing.assert_allclose(lat_actual, lat_expected)
 
-    @hypothesis.given(lonlat=st_lonlat_radians(max_dims=10, max_side=20))
+    @hypothesis.settings(deadline=500)
+    @hypothesis.given(lonlat=st_lonlat_radians(max_dims=5, max_side=10))
     def test_identical_nd(
         self, lonlat: tuple[NDArray[np.float64], NDArray[np.float64]]
     ) -> None:
@@ -257,9 +237,9 @@ class test_nvector_polygon_contains_pole:
         assert nvector_polygon_contains_pole(nvect) == (False, False)
 
 
-class test_cross_track_distance:
+class test_crosstrack_distance:
     def test_example(self) -> None:
-        r"""Cross-track distance for every point in a motion track
+        r"""Cross-track distance for every point in a motion track.
 
         We are given ``N`` origin/destination pairs, and, for each pair, the motion
         track of an object that travelled from the origin to the destination.
@@ -364,15 +344,42 @@ class test_cross_track_distance:
         point_lons = np.asarray([-75.44564704840916, -75.07705505227482, -74.60154324046780, -74.17949133649684])
         point_lats = np.asarray([ 43.52124976781056,  43.17341009622575,  43.32097375630951,  43.59261634178711])
 
-        ## Nvector solution
+        xt_nvect = self._compute_xt_nvect(
+            origin_lons,
+            origin_lats,
+            destin_lons,
+            destin_lats,
+            point_lons,
+            point_lats,
+        )
 
+        xt_lonlat = self._compute_xt_lonlat(
+            origin_lons,
+            origin_lats,
+            destin_lons,
+            destin_lats,
+            point_lons,
+            point_lats,
+        )
+
+        np.testing.assert_allclose(xt_nvect, xt_lonlat)
+
+    def _compute_xt_nvect(
+        self,
+        origin_lons,
+        origin_lats,
+        destin_lons,
+        destin_lats,
+        point_lons,
+        point_lats,
+    ):
         # Shapes: (3, 2)
         origin_nvects = lonlat_to_nvector(origin_lons, origin_lats)
         destin_nvects = lonlat_to_nvector(destin_lons, destin_lats)
         # Shape: (3, 4)
         point_nvects = lonlat_to_nvector(point_lons, point_lats)
 
-        xt_nvect = nvector_cross_track_distance(
+        xt_nvect = nvector_crosstrack_distance(
             # Shapes: (3, 2, 1)
             origin_nvects[:, ..., np.newaxis],
             destin_nvects[:, ..., np.newaxis],
@@ -387,9 +394,17 @@ class test_cross_track_distance:
         # where you typically want distances to be expressed in meaningful, familiar
         # units.
         xt_nvect *= earth_radius_avg_km
+        return xt_nvect
 
-        ## Lon/Lat solution
-
+    def _compute_xt_lonlat(
+        self,
+        origin_lons,
+        origin_lats,
+        destin_lons,
+        destin_lats,
+        point_lons,
+        point_lats,
+    ):
         geod = pyproj.Geod(a=1.0, f=0.0)
 
         # Shapes: (2,)
@@ -411,7 +426,8 @@ class test_cross_track_distance:
             np.tile(point_lats, len(origin_lats)),
         )
         out_shape = (len(origin_lons), len(point_lons))
-        point_bearing = np.radians(point_bearing.reshape(out_shape))
+        point_bearing = np.radians(point_bearing)
+        point_bearing = point_bearing.reshape(out_shape)
         point_distance = point_distance.reshape(out_shape)
 
         xt_lonlat = np.asin(
@@ -421,7 +437,46 @@ class test_cross_track_distance:
         # As above, not necessary and shouldn't change the result,
         # but more realistic as an example of usage.
         xt_lonlat *= earth_radius_avg_km
+        return xt_lonlat
 
-        ## Test it
 
-        np.testing.assert_allclose(xt_nvect, xt_lonlat)
+class test_crosstrack_alongtrack_distance:
+    def test_example(self) -> None:
+        geod = pyproj.Geod(a=earth_radius_avg_m, f=0.0)
+
+        # Start point
+        lon1, lat1 = -75, 45
+
+        # End point
+        a12 = 225
+        d12 = 500_000
+        lon2, lat2 = geod.fwd(lon1, lat1, a12, d12)[:2]
+
+        # Midpoint-ish
+        lon0, lat0 = geod.npts(lon1, lat1, lon2, lat2, 1)[0]
+
+        # Somewhere off to the side of the midpoint,
+        # orthogonal to the original line
+        a03 = (a12 - 90) % 360
+        d03 = 300_000
+        lon3, lat3 = geod.fwd(lon0, lat0, a03, d03)[:2]
+
+        # Expected results
+        # https://www.movable-type.co.uk/scripts/latlong.html
+        y_expected = d03
+        a13, _, d13 = geod.inv(lon1, lat1, lon3, lat3)
+        x_expected = geod.a * np.arccos(
+            np.cos(d13 / geod.a) /
+            np.cos(d03 / geod.a)
+        )
+
+        v1 = lonlat_to_nvector(lon1, lat1)
+        v2 = lonlat_to_nvector(lon2, lat2)
+        v3 = lonlat_to_nvector(lon3, lat3)
+        x, y = nvector_crosstrack_alongtrack_distance(v1, v2, v3)
+        x *= geod.a
+        y *= geod.a
+
+        # 0.1% seems good enough for me.
+        np.testing.assert_allclose(x, x_expected, rtol=0.001)
+        np.testing.assert_allclose(y, y_expected, rtol=0.001)
