@@ -332,7 +332,8 @@ def nvector_great_circle_normal(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> N
     r"""Compute the unit normal vector of the great-circle plane formed by two n-vectors.
 
     .. warning:: For antipodal points (points on opposite sides of the Earth), the
-      great-circle plane is undefined, so this function might return unstable results.
+      great-circle plane is undefined: any great circle is valid! In that case, this
+      function might return unstable results.
     """
     v1, v2 = _preprocess(v1, v2)
     n = _cross_each(v1, v2)
