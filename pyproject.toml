@@ -48,7 +48,7 @@ test = 'pytest {args}'
 template = 'test'
 extra-dependencies = ['ipython', 'pdbp']
 [tool.hatch.envs.dev.scripts]
-repl = 'ipython -i ipython_startup.py {args}'
+repl = 'ipython -i scripts/ipython_startup.py {args}'
 
 
 ## Pytest
