@@ -113,8 +113,10 @@ References
   `Source code (Git) <https://github.com/euctrl-pru/nvctr>`_.
 """
 
+import warnings
 from collections.abc import Iterable, Sequence
 from typing import Any, TypeAlias, TypeVar
+from typing_extensions import TypeIs
 
 import numpy as np
 from numpy.typing import NBitBase, NDArray
@@ -126,15 +128,52 @@ AngleArray: TypeAlias = FloatArray[_B]
 NVectorArray: TypeAlias = FloatArray[_B]
 
 
-def _validate(*vs: NVectorArray[Any]) -> None:
+class PerformanceWarning(Warning):
+    pass
+
+
+def _validate_dtype(*vs: NDArray[Any]) -> TypeIs[FloatArray[Any]]:
+    for v in vs:
+        if not np.issubdtype(v.dtype, np.floating):
+            raise ValueError("Input is not a valid n-vector array dtype.")
+    return True
+
+
+def _validate_shape(*vs: NVectorArray[Any]) -> None:
     for v in vs:
         if v.ndim == 0 or v.shape[0] != 3:
-            raise ValueError("Input is not a valid n-vector array.")
+            raise ValueError("Input is not a valid n-vector array shape.")
+    return True
 
 
-def _promote_shape(*vs: NVectorArray[_B]) -> Iterable[NVectorArray[_B]]:
+# def _convert_dtype(*vs: NDArray[Any]) -> FloatArray[np.float64]:
+#     out = []
+#     for v in vs:
+#         if not np.issubdtype(v.dtype, np.floating):
+#             vv = v.astype(np.float64)
+#         if vv.base is not v.base:
+#             warnings.warn(PerformanceWarning("DType has been promoted to float64, a copy has been created!"))
+#         out.append(vv)
+#     return tuple(out)
+
+
+def _promote_shape(*vs: NVectorArray[_B]) -> tuple[NVectorArray[_B]]:
+    out = []
     for v in vs:
-        yield v[:, np.newaxis] if v.ndim == 1 else v
+        if v.ndim == 0:
+            raise ValueError("Size-0 arrays are not supported and cannot be shape-promoted.")
+        vv = v[:, np.newaxis] if v.ndim == 1 else v
+        if vv.base is not v.base:
+            warnings.warn(PerformanceWarning("A copy was created when promoting a 1-d vector!"))
+        out.append(vv)
+    return tuple(out)
+
+
+def _preprocess(*vs: NDArray[Any]) -> NVectorArray[np.floating[Any]]:
+    # N.B. these assertions can never fail
+    assert _validate_dtype(*vs)
+    assert _validate_shape(*vs)
+    return _promote_shape(*vs)
 
 
 def _dot_each(u: NVectorArray[_B], v: NVectorArray[_B]) -> NVectorArray[_B]:
@@ -199,6 +238,23 @@ def _normalize(v: NVectorArray[_B], out: NVectorArray[_B] | None = None) -> NVec
     return out
 
 
+def _as_scalar(x: FloatArray[_B]) -> FloatArray[_B] | np.float64 | float:
+    return x.item() if x.size == 1 else x
+
+
+def _squeezable(x: NDArray[Any]) -> bool:
+    r"""Check whether "squeezing" an array would have any effect."""
+    return sum(ax_len > 1 for ax_len in x.shape) == 1
+
+
+def _dot_1d_scalar(x: FloatArray[_B], y: FloatArray[_B]) -> float:
+    r"""Scalar dot product of two 1-D column vectors."""
+    if not _squeezable(x) or not _squeezable(y):
+        raise ValueError("Inputs must have exactly one non-trivial axis.")
+    result: float = np.inner(x.squeeze(), y.squeeze())
+    return result
+
+
 def lonlat_to_nvector(
     lon: FloatArray[_B] | float,
     lat: FloatArray[_B] | float,
@@ -258,8 +314,7 @@ def nvector_to_lonlat(nvect: NVectorArray[_B], radians: bool = False) -> tuple[F
       North and South Poles is arbitrary, and depends on whatever Numpy ``atan2(0,0)``
       returns.
     """
-    _validate(nvect)
-    nvect, = _promote_shape(nvect)
+    (nvect,) = _preprocess(nvect)
 
     lon = np.arctan2(nvect[1, ...], -nvect[2, ...])
 
@@ -279,15 +334,10 @@ def nvector_great_circle_normal(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> N
     .. warning:: For antipodal points (points on opposite sides of the Earth), the
       great-circle plane is undefined, so this function might return unstable results.
     """
-    _validate(v1, v2)
-    v1, v2 = _promote_shape(v1, v2)
+    v1, v2 = _preprocess(v1, v2)
     n = _cross_each(v1, v2)
     _normalize(n, out=n)
     return n
-
-
-def _as_scalar(x: FloatArray[_B]) -> FloatArray[_B] | np.float64 | float:
-    return x.item() if x.size == 1 else x
 
 
 def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[_B]:
@@ -297,8 +347,7 @@ def nvector_arc_angle(v1: NVectorArray[_B], v2: NVectorArray[_B]) -> FloatArray[
     To get great-circle/geodesic distance on the surface of a non-unit sphere, multiply
     this result by the sphere radius.
     """
-    _validate(v1, v2)
-    v1, v2 = _promote_shape(v1, v2)
+    v1, v2 = _preprocess(v1, v2)
 
     # https://math.stackexchange.com/q/1143354/117452
     # https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
@@ -363,10 +412,11 @@ def nvector_direct(
         "outer product" over initial positions and azimuths, of shape ``(K, 3, N)``.
         Otherwise, ``initial_position_rad`` is expected to be compatible with
         ``initial_position_nvect``, and the result will have shape ``(3, N)``.
+
+    See N-Vector Example 2: https://www.ffi.no/en/research/n-vector/#example_2
     """
-    initial_position_nvect, distance_rad, initial_azimuth_rad = np.atleast_1d(
-        initial_position_nvect, distance_rad, initial_azimuth_rad
-    )
+    (initial_position_nvect,) = _preprocess(initial_position_nvect)
+    distance_rad, initial_azimuth_rad = np.atleast_1d(distance_rad, initial_azimuth_rad)
 
     # The first unit basis vector in the ECEF "E" frame.
     unit_basis_0 = np.asarray([1, 0, 0])
@@ -396,19 +446,6 @@ def nvector_direct(
     return final_position
 
 
-def _squeezable(x: NDArray[Any]) -> bool:
-    r"""Check whether "squeezing" an array would have any effect."""
-    return sum(ax_len > 1 for ax_len in x.shape) == 1
-
-
-def _dot_1d_scalar(x: FloatArray[_B], y: FloatArray[_B]) -> float:
-    r"""Scalar dot product of two 1-D column vectors."""
-    if not _squeezable(x) or not _squeezable(y):
-        raise ValueError("Inputs must have exactly one non-trivial axis.")
-    result: float = np.inner(x.squeeze(), y.squeeze())
-    return result
-
-
 # TODO: Does this work with clockwise polygons?
 # TODO: Add optional input validation.
 # TODO: Contains vs. covers -- what if the pole is a vertex?
@@ -427,6 +464,8 @@ def nvector_polygon_contains_pole(polygon_nvects: FloatArray[Any]) -> tuple[bool
         pole is on the same side of the great-circle plane formed by successive pairs of
         vertices.
     """
+
+    (polygon_nvects,) = _preprocess(polygon_nvects)
 
     if polygon_nvects.ndim != 2:
         raise ValueError("Input must be 2-dimensional")

@@ -20,7 +20,8 @@ test = [
   'nvector',
   'geographiclib',
   'pyproj',
-  'mypy',
+  'mypy ~= 1.10',
+  'typing-extensions >= 4.10.0 ; python_version < "3.13"',
 ]
 
 
